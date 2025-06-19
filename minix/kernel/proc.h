@@ -18,6 +18,7 @@
 #include <minix/portio.h>
 #include "const.h"
 #include "priv.h"
+#define RR_QUANTUM_MS 50 /* ms */
 
 struct proc {
   struct stackframe_s p_reg;	/* process' registers saved in stack frame */
@@ -26,7 +27,7 @@ struct proc {
   struct priv *p_priv;		/* system privileges structure */
   volatile u32_t p_rts_flags;	/* process is runnable only if zero */
   volatile u32_t p_misc_flags;	/* flags that do not suspend the process */
-
+  int p_quantum_left;		/* quantum left in ticks */	
   char p_priority;		/* current process priority */
   u64_t p_cpu_time_left;	/* time left to use the cpu */
   unsigned p_quantum_size_ms;	/* assigned time quantum in ms

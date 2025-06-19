@@ -18,7 +18,7 @@
 #include <assert.h>
 
 #include "clock.h"
-
+#define RR_QUANTUM_TICKS (system_hz / 10) /* ms */
 #ifdef USE_WATCHDOG
 #include "watchdog.h"
 #endif
@@ -78,6 +78,8 @@ int timer_int_handler(void)
 
 	struct proc * p, * billp;
 
+
+
 	/* FIXME watchdog for slave cpus! */
 #ifdef USE_WATCHDOG
 	/*
@@ -112,6 +114,15 @@ int timer_int_handler(void)
 
 	p = get_cpulocal_var(proc_ptr);
 	billp = get_cpulocal_var(bill_ptr);
+
+	if(p->p_quantum_left > 0) {
+		p->p_quantum_left--;
+	if(p->p_quantum_left == 0) {
+		/* If the process has no quantum left, it is not runnable anymore.
+		 * It will be rescheduled later.
+		 */
+		RTS_SET(p, RTS_NO_QUANTUM);
+	}
 
 	p->p_user_time++;
 

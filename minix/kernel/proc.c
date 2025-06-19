@@ -1604,7 +1604,6 @@ void enqueue(
  * This function can be used x-cpu as it always uses the queues of the cpu the
  * process is assigned to.
  */
-  int q = rp->p_priority;	 		/* scheduling queue to use */
   struct proc **rdy_head, **rdy_tail;
   
   assert(proc_is_runnable(rp));
@@ -1615,14 +1614,17 @@ void enqueue(
   rdy_tail = get_cpu_var(rp->p_cpu, run_q_tail);
 
   /* Now add the process to the queue. */
-  if (!rdy_head[q]) {		/* add to empty queue */
-      rdy_head[q] = rdy_tail[q] = rp; 		/* create a new queue */
+  if (!rdy_head[0]) {		/* add to empty queue */
+      rdy_head[0] = rdy_tail[0] = rp; 		/* create a new queue */
       rp->p_nextready = NULL;		/* mark new end */
   } 
   else {					/* add to tail of queue */
-      rdy_tail[q]->p_nextready = rp;		/* chain tail of queue */	
-      rdy_tail[q] = rp;				/* set new queue tail */
+      rdy_tail[0]->p_nextready = rp;		/* chain tail of queue */	
+      rdy_tail[0] = rp;				/* set new queue tail */
       rp->p_nextready = NULL;		/* mark new end */
+  }
+  if(rp->p_priority <= 0) {
+	rp->p_priority = RR_QUANTUM_TICKS;		/* set default priority */
   }
 
   if (cpuid == rp->p_cpu) {
@@ -1791,25 +1793,25 @@ static struct proc * pick_proc(void)
  * This function always uses the run queues of the local cpu!
  */
   register struct proc *rp;			/* process to run */
-  struct proc **rdy_head;
+  struct proc **rdy_head = get_cpulocal_var(run_q_head);
+  struct proc *rp = rdy_head[0];	/* default to first queue */
   int q;				/* iterate over queues */
 
   /* Check each of the scheduling queues for ready processes. The number of
    * queues is defined in proc.h, and priorities are set in the task table.
    * If there are no processes ready to run, return NULL.
    */
-  rdy_head = get_cpulocal_var(run_q_head);
-  for (q=0; q < NR_SCHED_QUEUES; q++) {	
-	if(!(rp = rdy_head[q])) {
-		TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
-		continue;
-	}
+	if(rp != NULL) {
 	assert(proc_is_runnable(rp));
+
 	if (priv(rp)->s_flags & BILLABLE)	 	
 		get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
+	if(rp->p_quantum_left <= 0) {
+		rp->p_quantum_left = RR_QUANTUM_TICKS;
+	}
+	}
 	return rp;
-  }
-  return NULL;
+  
 }
 
 /*===========================================================================*
